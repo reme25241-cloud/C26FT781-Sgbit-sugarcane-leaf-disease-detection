@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+
+            <div class="card shadow border-0 rounded-4">
+
+                <!-- Card Header -->
+                <div class="card-header bg-primary text-white text-center py-3 rounded-top-4">
+                    <h4 class="mb-0">Create an Account</h4>
+                </div>
+
+                <!-- Card Body -->
+                <div class="card-body p-4">
+
+                    <p class="text-center text-muted mb-4">
+                        Join our community and start your journey
+                    </p>
+
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+
+                        <div class="row">
+
+                            <!-- Left Column -->
+                            <div class="col-md-6">
+                                {% for field in form.visible_fields %}
+                                    {% if forloop.counter0|divisibleby:2 %}
+                                        <div class="mb-3">
+                                            {{ field|as_crispy_field }}
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+
+                            <!-- Right Column -->
+                            <div class="col-md-6">
+                                {% for field in form.visible_fields %}
+                                    {% if not forloop.counter0|divisibleby:2 %}
+                                        <div class="mb-3">
+                                            {{ field|as_crispy_field }}
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="d-grid mt-3">
+                            <button type="submit" class="btn btn-primary">
+                                Register
+                            </button>
+                        </div>
+
+                    </form>
+
+                    <!-- Error Message -->
+                    {% if form.errors %}
+                    <div class="alert alert-danger mt-4">
+                        Please correct the error{{ form.errors|length|pluralize }} below.
+                    </div>
+                    {% endif %}
+
+                    <!-- Login Link -->
+                    <div class="text-center mt-4">
+                        <p class="mb-2">Already have an account?</p>
+                        <a href="{% url 'login' %}" class="btn btn-outline-primary btn-sm">
+                            Login
+                        </a>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

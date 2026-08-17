@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Profile | AI Soybean Leaf Disease Detection{% endblock %}
+
+{% block content %}
+
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-7 col-md-9">
+
+      <div class="glass-card overflow-hidden">
+
+        <!-- Header Banner -->
+        <div class="p-4 p-md-5 text-center position-relative" style="background:linear-gradient(135deg, rgba(46,204,113,0.1), rgba(0,212,255,0.06)); border-bottom:1px solid var(--border-color);">
+          <div class="position-absolute" style="top:-30px; right:-30px; width:140px; height:140px; background:radial-gradient(circle, rgba(46,204,113,0.15), transparent 70%);"></div>
+
+          {% if user.profile_pic %}
+            <img src="{{ user.profile_pic.url }}" alt="Profile" class="rounded-circle mb-3"
+                 style="width:88px; height:88px; object-fit:cover; border:3px solid var(--accent-green); box-shadow:0 0 24px rgba(46,204,113,0.3);">
+          {% else %}
+            <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
+                 style="width:88px; height:88px; background:linear-gradient(135deg, var(--accent-green), var(--accent-cyan)); box-shadow:0 0 24px rgba(46,204,113,0.3);">
+              <i class="bi bi-person-fill" style="font-size:2.2rem; color:#04120b;"></i>
+            </div>
+          {% endif %}
+
+          <div class="section-eyebrow mb-1"><i class="bi bi-person-badge"></i> USER PROFILE</div>
+          <h4 class="fw-bold mb-0">{{ user.username }}</h4>
+          <p class="text-secondary-custom small mb-0">{{ user.email|default:"No email on file" }}</p>
+        </div>
+
+        <!-- Body -->
+        <div class="p-4 p-md-5">
+
+          <div class="row g-3 mb-4">
+            <div class="col-md-6">
+              <div class="p-3 rounded-3" style="background:var(--bg-secondary); border:1px solid var(--border-color);">
+                <p class="small text-secondary-custom mb-1"><i class="bi bi-person me-1"></i>Username</p>
+                <p class="fw-medium mb-0">{{ user.username }}</p>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="p-3 rounded-3" style="background:var(--bg-secondary); border:1px solid var(--border-color);">
+                <p class="small text-secondary-custom mb-1"><i class="bi bi-envelope me-1"></i>Email Address</p>
+                <p class="fw-medium mb-0">{{ user.email|default:"—" }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Primary Actions -->
+          <div class="d-flex flex-wrap gap-2 mb-4">
+            <a href="{% url 'edit_profile' %}" class="btn fw-semibold" style="background:linear-gradient(135deg, var(--accent-green), var(--accent-cyan)); color:#04120b; border:none; border-radius:8px; padding:.5rem 1.2rem; font-size:.85rem;">
+              <i class="bi bi-pencil-square me-1"></i> Edit Profile
+            </a>
+
+            <a href="{% url 'dashboard' %}" class="btn-nav-ghost">
+              <i class="bi bi-speedometer2"></i> Go to Dashboard
+            </a>
+          </div>
+
+          <hr style="border-color: var(--border-color); opacity:.6;">
+
+          <!-- Account Settings -->
+          <h6 class="section-eyebrow mb-3"><i class="bi bi-shield-lock"></i> ACCOUNT SETTINGS</h6>
+
+          <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'change_password' %}" class="btn-nav-ghost" style="color:var(--accent-cyan); border-color:rgba(0,212,255,.3);">
+              <i class="bi bi-key"></i> Change Password
+            </a>
+
+            <a href="{% url 'password_reset' %}" class="btn-nav-ghost">
+              <i class="bi bi-arrow-repeat"></i> Reset Password
+            </a>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{% endblock %}

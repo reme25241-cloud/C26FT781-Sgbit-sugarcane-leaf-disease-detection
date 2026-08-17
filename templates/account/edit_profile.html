@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% block title %}Edit Profile | AI Soybean Leaf Disease Detection{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* Scoped overrides so crispy-generated Bootstrap fields match the theme */
+  .profile-form-card .form-control,
+  .profile-form-card .form-select,
+  .profile-form-card textarea {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: 8px;
+    padding: .6rem .9rem;
+  }
+  .profile-form-card .form-control:focus,
+  .profile-form-card .form-select:focus {
+    background: var(--bg-secondary);
+    border-color: var(--accent-green);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 3px rgba(46,204,113,0.15);
+  }
+  .profile-form-card .form-control::placeholder { color: var(--text-secondary); opacity: .7; }
+  .profile-form-card label {
+    color: var(--text-secondary);
+    font-size: .82rem;
+    font-weight: 500;
+    margin-bottom: .35rem;
+  }
+  .profile-form-card .form-text { color: var(--text-secondary); font-size: .76rem; }
+  .profile-form-card .invalid-feedback { color: var(--accent-red); }
+  .profile-form-card .form-control.is-invalid,
+  .profile-form-card .form-select.is-invalid { border-color: var(--accent-red); }
+  .profile-form-card input[type="file"] {
+    background: var(--bg-secondary);
+    border: 1px dashed var(--border-color);
+    color: var(--text-secondary);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-6 col-md-8">
+
+      <div class="text-center mb-4">
+        <div class="mx-auto mb-3 d-flex align-items-center justify-content-center" style="width:64px;height:64px;border-radius:16px;background:linear-gradient(135deg, var(--accent-green), var(--accent-cyan)); box-shadow:0 0 24px rgba(46,204,113,0.3);">
+          <i class="bi bi-person-gear" style="font-size:1.6rem; color:#04120b;"></i>
+        </div>
+        <div class="section-eyebrow mb-1"><i class="bi bi-pencil-square"></i> ACCOUNT SETTINGS</div>
+        <h3 class="fw-bold mb-0">Edit Profile</h3>
+        <p class="text-secondary-custom small mb-0">Update your account details below</p>
+      </div>
+
+      <div class="glass-card profile-form-card p-4 p-md-5">
+
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+
+          <div class="mb-3">
+            {{ form|crispy }}
+          </div>
+
+          <hr style="border-color: var(--border-color); opacity:.6;" class="my-4">
+
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+
+            <a href="{% url 'profile' %}" class="btn-nav-ghost">
+              <i class="bi bi-arrow-left"></i> Back to Profile
+            </a>
+
+            <div class="d-flex gap-2">
+              <a href="{% url 'dashboard' %}" class="btn-nav-ghost">
+                <i class="bi bi-speedometer2"></i> Dashboard
+              </a>
+
+              <button type="submit" class="btn fw-semibold" style="background:linear-gradient(135deg, var(--accent-green), var(--accent-cyan)); color:#04120b; border:none; border-radius:8px; padding:.5rem 1.2rem; font-size:.85rem;">
+                <i class="bi bi-check-lg"></i> Save Changes
+              </button>
+            </div>
+
+          </div>
+
+        </form>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

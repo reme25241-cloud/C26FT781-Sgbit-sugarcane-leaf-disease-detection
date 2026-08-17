@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}About | CaneGuardAI{% endblock %}
+{% block nav_about %}active{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h3 class="fw-bold mb-0" style="color:var(--leaf-dark)">About CaneGuardAI</h3>
+    <small class="text-muted">AI-powered sugarcane leaf disease detection & crop growth tracking, running locally in the field</small>
+</div>
+
+<div class="card p-4 mb-4">
+    <p class="mb-0 text-muted" style="font-size:0.92rem;">
+        CaneGuardAI helps farmers and field staff catch sugarcane leaf disease early and keep track of how each
+        field is progressing through its growth cycle — all from a single dashboard that runs locally, with no
+        dependency on cloud connectivity for diagnosis.
+    </p>
+</div>
+
+<div class="card p-4 mb-4">
+    <h6 class="fw-bold mb-3" style="color:var(--leaf-dark)"><i class="bi bi-diagram-3 me-1"></i> How It Works</h6>
+    <div class="row g-3 text-center">
+        <div class="col">
+            <div class="p-3 rounded-3 h-100" style="background:var(--leaf-soft)">
+                <i class="bi bi-camera-fill fs-3" style="color:var(--leaf-primary)"></i>
+                <div class="fw-semibold mt-2 small">Upload or Camera</div>
+                <div class="text-muted" style="font-size:0.76rem">Upload a photo, or capture a leaf live from your device camera</div>
+            </div>
+        </div>
+        <div class="col-auto d-flex align-items-center"><i class="bi bi-arrow-right text-muted"></i></div>
+        <div class="col">
+            <div class="p-3 rounded-3 h-100" style="background:var(--leaf-soft)">
+                <i class="bi bi-cpu-fill fs-3" style="color:var(--leaf-primary)"></i>
+                <div class="fw-semibold mt-2 small">In-Browser Model</div>
+                <div class="text-muted" style="font-size:0.76rem">Classified client-side via TensorFlow.js — no image leaves the device</div>
+            </div>
+        </div>
+        <div class="col-auto d-flex align-items-center"><i class="bi bi-arrow-right text-muted"></i></div>
+        <div class="col">
+            <div class="p-3 rounded-3 h-100" style="background:var(--leaf-soft)">
+                <i class="bi bi-clipboard2-pulse-fill fs-3" style="color:var(--leaf-primary)"></i>
+                <div class="fw-semibold mt-2 small">Diagnosis</div>
+                <div class="text-muted" style="font-size:0.76rem">Class, confidence score, and a treatment recommendation</div>
+            </div>
+        </div>
+        <div class="col-auto d-flex align-items-center"><i class="bi bi-arrow-right text-muted"></i></div>
+        <div class="col">
+            <div class="p-3 rounded-3 h-100" style="background:var(--leaf-soft)">
+                <i class="bi bi-graph-up-arrow fs-3" style="color:var(--leaf-primary)"></i>
+                <div class="fw-semibold mt-2 small">Tracked & Analyzed</div>
+                <div class="text-muted" style="font-size:0.76rem">Logged to history and rolled up into dashboard trends</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card p-4 h-100">
+            <h6 class="fw-bold mb-3" style="color:var(--leaf-dark)"><i class="bi bi-speedometer2 me-1"></i> Dashboard & Analytics</h6>
+            <ul class="list-unstyled mb-0" style="font-size:0.85rem">
+                <li class="mb-2"><i class="bi bi-check-circle-fill me-2" style="color:var(--leaf-primary)"></i>Total, healthy, and diseased scan counts, plus average confidence</li>
+                <li class="mb-2"><i class="bi bi-check-circle-fill me-2" style="color:var(--leaf-primary)"></i>Weekly scan volume and disease-breakdown charts</li>
+                <li class="mb-2"><i class="bi bi-check-circle-fill me-2" style="color:var(--leaf-primary)"></i>Week-over-week growth rate for scan volume and disease rate</li>
+                <li class="mb-2"><i class="bi bi-check-circle-fill me-2" style="color:var(--leaf-primary)"></i>Outbreak alerts when disease rate crosses a threshold</li>
+                <li class="mb-2"><i class="bi bi-check-circle-fill me-2" style="color:var(--leaf-primary)"></i>Auto-generated suggestions based on current disease mix</li>
+                <li class="mb-0"><i class="bi bi-check-circle-fill me-2" style="color:var(--leaf-primary)"></i>Filterable, paginated scan history with CSV export</li>
+            </ul>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card p-4 h-100">
+            <h6 class="fw-bold mb-3" style="color:var(--leaf-dark)"><i class="bi bi-flower2 me-1"></i> Crop Growth Tracking</h6>
+            <ul class="list-unstyled mb-0" style="font-size:0.85rem">
+                <li class="mb-2"><i class="bi bi-check-circle-fill me-2" style="color:var(--leaf-primary)"></i>Farmers log a field's planting date, variety, and area</li>
+                <li class="mb-2"><i class="bi bi-check-circle-fill me-2" style="color:var(--leaf-primary)"></i>Growth stage calculated automatically from days since planting</li>
+                <li class="mb-2"><i class="bi bi-check-circle-fill me-2" style="color:var(--leaf-primary)"></i>Five-stage cycle: Germination &rarr; Tillering &rarr; Grand Growth &rarr; Maturity &rarr; Harvest Ready</li>
+                <li class="mb-2"><i class="bi bi-check-circle-fill me-2" style="color:var(--leaf-primary)"></i>Stage-specific tips (fertilization, irrigation, pest watch)</li>
+                <li class="mb-0"><i class="bi bi-check-circle-fill me-2" style="color:var(--leaf-primary)"></i>Field-wise progress and crop-variety distribution charts</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card p-4 h-100">
+            <h6 class="fw-bold mb-3" style="color:var(--leaf-dark)"><i class="bi bi-stack me-1"></i> Tech Stack</h6>
+            <ul class="list-unstyled mb-0">
+                <li class="mb-2"><i class="bi bi-check-circle-fill me-2" style="color:var(--leaf-primary)"></i>Django (runs locally on Raspberry Pi)</li>
+                <li class="mb-2"><i class="bi bi-check-circle-fill me-2" style="color:var(--leaf-primary)"></i>Machine image model, classified client-side via TensorFlow.js</li>
+                <li class="mb-2"><i class="bi bi-check-circle-fill me-2" style="color:var(--leaf-primary)"></i>Browser file upload and live camera capture (getUserMedia)</li>
+                <li class="mb-2"><i class="bi bi-check-circle-fill me-2" style="color:var(--leaf-primary)"></i>Bootstrap 5 + Chart.js frontend</li>
+                <li class="mb-0"><i class="bi bi-check-circle-fill me-2" style="color:var(--leaf-primary)"></i>SQLite for scan history, thumbnails, and tracked fields</li>
+            </ul>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card p-4 h-100">
+            <h6 class="fw-bold mb-3" style="color:var(--leaf-dark)"><i class="bi bi-lightning-charge me-1"></i> Detected Classes</h6>
+            <ul class="list-unstyled mb-0" style="font-size:0.85rem">
+                <li class="mb-2"><span class="badge badge-healthy me-2">Healthy</span>Normal leaf, no treatment needed</li>
+                <li class="mb-2"><span class="badge badge-disease me-2">Smut</span>Whip-like black fungal growth</li>
+                <li class="mb-2"><span class="badge badge-disease me-2">Fungal Disease</span>General fungal infection</li>
+                <li class="mb-2"><span class="badge badge-disease me-2">Grassy Shoot</span>Excessive thin tillering, spread by leafhoppers</li>
+                <li class="mb-2"><span class="badge" style="background:rgba(217,119,6,0.15);color:#b45309;">Mosaic</span>Viral mottling pattern</li>
+                <li class="mb-2"><span class="badge" style="background:rgba(180,83,9,0.15);color:#b45309;">Rust</span>Orange pustules on leaf surface</li>
+                <li class="mb-2"><span class="badge badge-disease me-2">Leaf Scald</span>Fungal streaking, wilting</li>
+                <li class="mb-2"><span class="badge" style="background:rgba(124,92,62,0.15);color:var(--soil);">Borer</span>Stem/leaf boring insect damage</li>
+                <li class="mb-2"><span class="badge" style="background:rgba(148,163,184,0.15);color:#64748b;">Pests</span>General pest damage, unspecified</li>
+                <li class="mb-0"><span class="badge badge-disease me-2">Red Rot</span>Fungal stalk infection</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

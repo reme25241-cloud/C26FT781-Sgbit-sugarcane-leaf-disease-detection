@@ -1,0 +1,427 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Sugarcane Leaf Disease Detection{% endblock %}</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.7.4/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8.4/dist/teachablemachine-image.min.js"></script>
+    <style>
+        :root {
+            --bg-main: #f7f9f4;
+            --bg-card: #ffffff;
+            --leaf-dark: #1b4332;
+            --leaf-primary: #2d6a4f;
+            --leaf-accent: #52b788;
+            --leaf-soft: rgba(82, 183, 136, 0.12);
+            --soil: #7c5c3e;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --success: #2d6a4f;
+            --text-dark: #1b2a22;
+            --text-muted: #6b7d72;
+            --border-subtle: #e3ebe2;
+        }
+        * { font-family: 'Manrope', sans-serif; }
+        body {
+            background: var(--bg-main);
+            color: var(--text-dark);
+            min-height: 100vh;
+        }
+
+        .navbar {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border-subtle);
+            padding: 0.85rem 0;
+        }
+        .navbar-brand {
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            color: var(--leaf-dark) !important;
+        }
+        .brand-icon {
+            width: 38px; height: 38px;
+            background: var(--leaf-primary);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            color: #fff;
+            font-size: 1.15rem;
+        }
+        .nav-link {
+            color: var(--text-muted) !important;
+            font-weight: 600;
+            font-size: 0.9rem;
+            padding: 0.5rem 1rem !important;
+            border-radius: 8px;
+            transition: all 0.15s ease;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: var(--leaf-primary) !important;
+            background: var(--leaf-soft);
+        }
+        .badge-live {
+            background: var(--leaf-soft);
+            color: var(--leaf-primary);
+            font-weight: 700;
+            font-size: 0.7rem;
+            padding: 0.4em 0.8em;
+        }
+        .badge-live .dot {
+            display: inline-block;
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--leaf-accent);
+            margin-right: 5px;
+            animation: pulse 1.6s infinite;
+        }
+        @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+        .btn-leaf {
+            background: var(--leaf-primary);
+            color: #fff;
+            font-weight: 700;
+            border: none;
+            border-radius: 10px;
+        }
+        .btn-leaf:hover { background: var(--leaf-dark); color: #fff; }
+        .btn-leaf-outline {
+            background: transparent;
+            border: 1.5px solid var(--leaf-primary);
+            color: var(--leaf-primary);
+            font-weight: 700;
+            border-radius: 10px;
+        }
+        .btn-leaf-outline:hover { background: var(--leaf-soft); color: var(--leaf-dark); }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            box-shadow: 0 2px 10px rgba(27, 67, 50, 0.04);
+        }
+        .card-title-sm {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            font-weight: 700;
+        }
+        .stat-value { font-size: 1.9rem; font-weight: 800; color: var(--leaf-dark); }
+
+        .table { color: var(--text-dark); }
+        .table thead th {
+            color: var(--text-muted);
+            font-size: 0.74rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom-width: 1px;
+        }
+
+        .badge-healthy { background: rgba(45,106,79,0.1); color: var(--leaf-primary); }
+        .badge-disease { background: rgba(220,38,38,0.1); color: var(--danger); }
+        .badge-warning { background: rgba(217,119,6,0.1); color: var(--warning); }
+
+        footer {
+            border-top: 1px solid var(--border-subtle);
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            background: var(--bg-card);
+        }
+
+        .alert-threshold {
+            border: 1px solid rgba(220, 38, 38, 0.25);
+            background: rgba(220, 38, 38, 0.06);
+            color: #991b1b;
+            border-radius: 12px;
+            display: none;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg sticky-top">
+    <div class="container">
+        <a class="navbar-brand" href="/">
+            <div class="brand-icon"><i class="bi bi-flower1"></i></div>
+            <span>CaneGuard<span style="color:var(--leaf-accent)">AI</span></span>
+        </a>
+        <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
+            <i class="bi bi-list fs-3" style="color:var(--leaf-dark)"></i>
+        </button>
+
+        <div class="collapse navbar-collapse" id="mainNav">
+            <ul class="navbar-nav mx-auto gap-1">
+                <li class="nav-item">
+                    <a class="nav-link {% block nav_dashboard %}{% endblock %}" href="{% url 'dashboard' %}">
+                        <i class="bi bi-grid-1x2-fill me-1"></i> Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% block nav_predict %}{% endblock %}" href="{% url 'modelapp:predict' %}">
+                        <i class="bi bi-camera-fill me-1"></i> Scan Leaf
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% block nav_history %}{% endblock %}" href="{% url 'modelapp:history' %}">
+                        <i class="bi bi-clock-history me-1"></i> Scan History
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'modelapp:growth' %}">
+                        <i class="bi bi-tree me-1"></i> Growth Rate
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% block nav_about %}{% endblock %}" href="{% url 'about' %}">
+                        <i class="bi bi-info-circle-fill me-1"></i> About
+                    </a>
+                </li>
+            </ul>
+
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge badge-live rounded-pill d-none d-md-inline-flex"><span class="dot"></span>Model Ready</span>
+
+                {% if user.is_authenticated %}
+                    <a href="{% url 'profile' %}" class="nav-link d-flex align-items-center gap-2">
+                        {% if request.user.profile_pic %}
+                            <img src="{{ request.user.profile_pic.url }}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;" alt="Profile">
+                        {% else %}
+                            <i class="bi bi-person-circle" style="font-size:1.3rem;color:var(--leaf-primary);"></i>
+                        {% endif %}
+                        <span class="d-none d-md-inline" style="font-size:0.8rem;color:var(--text-muted);">{{ user.username }}</span>
+                    </a>
+                    <form method="post" action="{% url 'logout' %}" class="m-0">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-leaf-outline btn-sm">
+                            <i class="bi bi-box-arrow-right"></i>
+                        </button>
+                    </form>
+                {% else %}
+                    <div class="dropdown">
+                        <button class="btn btn-leaf-outline btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+                            Login
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{% url 'login' %}"><i class="bi bi-person me-2"></i>Farmer Login</a></li>
+                            <li><a class="dropdown-item" href="{% url 'admin:login' %}"><i class="bi bi-shield me-2"></i>Admin Login</a></li>
+                        </ul>
+                    </div>
+                    <a href="{% url 'signup' %}" class="btn btn-leaf btn-sm">
+                        <i class="bi bi-person-plus me-1"></i>Sign Up
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</nav>
+
+<main class="container py-4">
+
+{% block content %}
+<section class="py-3 mb-5">
+    <div class="row align-items-center g-4">
+        <div class="col-lg-6">
+            <span class="badge badge-live rounded-pill mb-3"><span class="dot"></span>AI Model Active</span>
+            <h1 class="fw-bold mb-3" style="font-size:2.5rem; letter-spacing:-0.02em; color:var(--leaf-dark);">
+                Spot sugarcane disease before it spreads.
+            </h1>
+            <p class="text-muted fs-6 mb-4">
+                Upload or capture a photo of a sugarcane leaf and get an instant AI diagnosis —
+                red rot, rust, mosaic, yellow leaf disease, or healthy — with treatment guidance.
+            </p>
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{% url 'modelapp:predict' %}" class="btn btn-leaf px-4 py-2">
+                    <i class="bi bi-camera-fill me-2"></i>Scan a Leaf
+                </a>
+                <a href="{% url 'dashboard' %}" class="btn btn-leaf-outline px-4 py-2">
+                    <i class="bi bi-bar-chart-fill me-2"></i>View Dashboard
+                </a>
+            </div>
+            <div class="row mt-4 g-3">
+                <div class="col-4">
+                    <div class="fw-bold fs-4" style="color:var(--leaf-dark)">96.4%</div>
+                    <div class="text-muted small">Model accuracy</div>
+                </div>
+                <div class="col-4">
+                    <div class="fw-bold fs-4" style="color:var(--leaf-dark)">5</div>
+                    <div class="text-muted small">Disease classes</div>
+                </div>
+                <div class="col-4">
+                    <div class="fw-bold fs-4" style="color:var(--leaf-dark)">&lt;2s</div>
+                    <div class="text-muted small">Diagnosis time</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="card-title-sm">Recent Scan Trend</span>
+                    <span class="text-muted small" id="homeTimestamp">just now</span>
+                </div>
+                <div class="row g-3 text-center mb-3">
+                    <div class="col-4">
+                        <div class="p-3 rounded-3" style="background:var(--leaf-soft)">
+                            <i class="bi bi-images fs-4" style="color:var(--leaf-primary)"></i>
+                            <div class="fw-bold fs-5 mt-1" id="homeTotalScans">--</div>
+                            <div class="text-muted small">Total Scans</div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="p-3 rounded-3" style="background:rgba(45,106,79,0.1)">
+                            <i class="bi bi-check-circle-fill fs-4" style="color:var(--leaf-primary)"></i>
+                            <div class="fw-bold fs-5 mt-1" id="homeHealthy">--</div>
+                            <div class="text-muted small">Healthy</div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="p-3 rounded-3" style="background:rgba(220,38,38,0.08)">
+                            <i class="bi bi-exclamation-triangle-fill fs-4" style="color:var(--danger)"></i>
+                            <div class="fw-bold fs-5 mt-1" id="homeDiseased">--</div>
+                            <div class="text-muted small">Diseased</div>
+                        </div>
+                    </div>
+                </div>
+                <canvas id="homeMiniChart" height="90"></canvas>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="mb-5">
+    <div class="mb-3">
+        <h5 class="fw-bold mb-1" style="color:var(--leaf-dark)">What CaneGuardAI detects</h5>
+        <p class="text-muted small mb-0">Trained on thousands of labeled sugarcane leaf images.</p>
+    </div>
+    <div class="row g-3">
+        <div class="col-md-3 col-6">
+            <div class="card p-4 h-100">
+                <i class="bi bi-droplet-half fs-3 mb-3" style="color:var(--danger)"></i>
+                <h6 class="fw-bold small">Red Rot</h6>
+                <p class="text-muted small mb-0">Fungal infection causing reddish discoloration inside the stalk.</p>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card p-4 h-100">
+                <i class="bi bi-cloud-rain-fill fs-3 mb-3" style="color:var(--soil)"></i>
+                <h6 class="fw-bold small">Rust Disease</h6>
+                <p class="text-muted small mb-0">Orange-brown pustules on leaf surface reducing photosynthesis.</p>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card p-4 h-100">
+                <i class="bi bi-grid-3x3-gap-fill fs-3 mb-3" style="color:var(--warning)"></i>
+                <h6 class="fw-bold small">Mosaic Virus</h6>
+                <p class="text-muted small mb-0">Irregular light and dark green patches across the leaf blade.</p>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card p-4 h-100">
+                <i class="bi bi-check-circle-fill fs-3 mb-3" style="color:var(--leaf-primary)"></i>
+                <h6 class="fw-bold small">Healthy Leaf</h6>
+                <p class="text-muted small mb-0">No disease detected — leaf shows normal color and structure.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="card p-4 mb-5">
+    <h6 class="fw-bold mb-4 text-center" style="color:var(--leaf-dark)">How It Works</h6>
+    <div class="row text-center g-3">
+        <div class="col">
+            <div class="p-3 rounded-3 mb-2" style="background:var(--leaf-soft)">
+                <i class="bi bi-camera-fill fs-3" style="color:var(--leaf-primary)"></i>
+            </div>
+            <div class="fw-semibold small">1. Capture / Upload</div>
+            <div class="text-muted" style="font-size:0.76rem">Take or upload a leaf photo</div>
+        </div>
+        <div class="col-auto d-flex align-items-center"><i class="bi bi-arrow-right text-muted"></i></div>
+        <div class="col">
+            <div class="p-3 rounded-3 mb-2" style="background:var(--leaf-soft)">
+                <i class="bi bi-cpu-fill fs-3" style="color:var(--leaf-primary)"></i>
+            </div>
+            <div class="fw-semibold small">2. AI Analysis</div>
+            <div class="text-muted" style="font-size:0.76rem">CNN model classifies the leaf</div>
+        </div>
+        <div class="col-auto d-flex align-items-center"><i class="bi bi-arrow-right text-muted"></i></div>
+        <div class="col">
+            <div class="p-3 rounded-3 mb-2" style="background:var(--leaf-soft)">
+                <i class="bi bi-clipboard2-pulse-fill fs-3" style="color:var(--leaf-primary)"></i>
+            </div>
+            <div class="fw-semibold small">3. Diagnosis</div>
+            <div class="text-muted" style="font-size:0.76rem">Disease + confidence score</div>
+        </div>
+        <div class="col-auto d-flex align-items-center"><i class="bi bi-arrow-right text-muted"></i></div>
+        <div class="col">
+            <div class="p-3 rounded-3 mb-2" style="background:var(--leaf-soft)">
+                <i class="bi bi-journal-medical fs-3" style="color:var(--leaf-primary)"></i>
+            </div>
+            <div class="fw-semibold small">4. Recommendation</div>
+            <div class="text-muted" style="font-size:0.76rem">Treatment guidance & logging</div>
+        </div>
+    </div>
+</section>
+
+<section class="card p-5 text-center" style="background:linear-gradient(135deg, var(--bg-card), var(--leaf-soft));">
+    <h5 class="fw-bold mb-2" style="color:var(--leaf-dark)">Check your crop today</h5>
+    <p class="text-muted mb-4">A quick scan can catch disease before it spreads across the field.</p>
+    <div class="d-flex justify-content-center gap-2 flex-wrap">
+        <a href="{% url 'modelapp:predict' %}" class="btn btn-leaf px-4 py-2">
+            <i class="bi bi-camera-fill me-2"></i>Scan a Leaf Now
+        </a>
+        <a href="{% url 'modelapp:history' %}" class="btn btn-leaf-outline px-4 py-2">
+            <i class="bi bi-clock-history me-2"></i>View Scan History
+        </a>
+    </div>
+</section>
+
+<script>
+const homeChart = new Chart(document.getElementById('homeMiniChart'), {
+    type: 'bar',
+    data: { labels: [], datasets: [{ data: [], backgroundColor: '#2d6a4f', borderRadius: 6 }] },
+    options: { responsive: true, plugins: { legend: { display: false } },
+        scales: { x: { grid: { display: false } }, y: { grid: { color: '#eef3ec' } } } }
+});
+
+async function loadHomeSnapshot() {
+    try {
+        const res = await fetch('/api/scans/summary/');
+        const data = await res.json();
+        document.getElementById('homeTotalScans').textContent = data.total_scans;
+        document.getElementById('homeHealthy').textContent = data.healthy_count;
+        document.getElementById('homeDiseased').textContent = data.diseased_count;
+        document.getElementById('homeTimestamp').textContent = new Date().toLocaleTimeString();
+
+        homeChart.data.labels = data.weekly.map(d => d.day);
+        homeChart.data.datasets[0].data = data.weekly.map(d => d.scans);
+        homeChart.update();
+    } catch (e) { console.error('home snapshot failed', e); }
+}
+loadHomeSnapshot();
+setInterval(loadHomeSnapshot, 20000);
+</script>
+{% endblock %}
+</main>
+
+<footer class="py-4 mt-5">
+    <div class="container d-flex flex-wrap justify-content-between">
+        <span>&copy; {% now "Y" %} CaneGuardAI &mdash; Sugarcane Leaf Disease Detection System</span>
+        <span>Powered by CNN Image Classification</span>
+    </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+{% block extra_js %}{% endblock %}
+</body>
+</html>

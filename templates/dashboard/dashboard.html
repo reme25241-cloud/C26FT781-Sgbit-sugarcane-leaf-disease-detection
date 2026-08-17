@@ -1,0 +1,376 @@
+{% extends "base.html" %}
+{% block title %}Dashboard | CaneGuardAI{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h3 class="fw-bold mb-0" style="color:var(--leaf-dark)">Analytics Dashboard</h3>
+    <small class="text-muted">Overview of all sugarcane leaf scans</small>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3 col-6">
+        <div class="card p-3">
+            <div class="card-title-sm">Total Scans</div>
+            <div class="stat-value" id="totalScans">--</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="card p-3">
+            <div class="card-title-sm">Healthy Leaves</div>
+            <div class="stat-value" style="color:var(--leaf-primary)" id="healthyCount">--</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="card p-3">
+            <div class="card-title-sm">Diseased Leaves</div>
+            <div class="stat-value" style="color:var(--danger)" id="diseasedCount">--</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="card p-3">
+            <div class="card-title-sm">Avg. Confidence</div>
+            <div class="stat-value" style="color:var(--warning)" id="avgConfidence">--%</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card p-3 h-100">
+            <div class="card-title-sm">Weekly Scan Volume Growth</div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="stat-value" id="scanGrowthValue">--</span>
+                <i class="bi" id="scanGrowthIcon"></i>
+            </div>
+            <small class="text-muted" id="scanGrowthDetail">vs. previous 7 days</small>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card p-3 h-100">
+            <div class="card-title-sm">Weekly Disease Rate Growth</div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="stat-value" id="diseaseGrowthValue">--</span>
+                <i class="bi" id="diseaseGrowthIcon"></i>
+            </div>
+            <small class="text-muted" id="diseaseGrowthDetail">vs. previous 7 days</small>
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-threshold py-3 mb-4" id="outbreakAlert" style="display:none;">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+    <span id="outbreakAlertText">Disease rate elevated this week — inspect the field.</span>
+</div>
+
+<div class="card p-4 mb-4" id="growthWidgetCard" style="display:none;">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="fw-bold mb-0" style="color:var(--leaf-dark)">Crop Growth — <span id="growthFieldName"></span></h6>
+        <a href="{% url 'modelapp:growth' %}" class="small text-decoration-none" style="color:var(--leaf-primary)">Manage fields &rarr;</a>
+    </div>
+    <span class="badge mb-2" id="growthStageBadge"></span>
+    <div class="progress" style="height:8px;">
+        <div class="progress-bar" id="growthProgressBar" role="progressbar" style="width:0%;"></div>
+    </div>
+    <div class="small text-muted mt-1" id="growthDetail"></div>
+</div>
+
+<div class="card p-4 mb-4">
+    <h6 class="fw-bold mb-2" style="color:var(--leaf-dark)">Suggestions</h6>
+    <ul class="mb-0 ps-3 small text-muted" id="suggestionsBox">
+        <li>Loading suggestions...</li>
+    </ul>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-7">
+        <div class="card p-4 h-100">
+            <h6 class="fw-bold mb-3" style="color:var(--leaf-dark)">Weekly Scan Volume</h6>
+            <canvas id="weeklyChart" height="110"></canvas>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card p-4 h-100">
+            <h6 class="fw-bold mb-3" style="color:var(--leaf-dark)">Disease Breakdown</h6>
+            <canvas id="diseaseChart" height="180"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-7">
+        <div class="card p-4 h-100">
+            <h6 class="fw-bold mb-3" style="color:var(--leaf-dark)">Field-wise Growth Progress</h6>
+            <canvas id="fieldGrowthChart" height="110"></canvas>
+            <p class="text-muted small mb-0 mt-2" id="fieldGrowthEmpty" style="display:none;">
+                No fields tracked yet. <a href="{% url 'modelapp:growth' %}">Add a field &rarr;</a>
+            </p>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card p-4 h-100">
+            <h6 class="fw-bold mb-3" style="color:var(--leaf-dark)">Crop Variety Distribution</h6>
+            <canvas id="varietyChart" height="180"></canvas>
+            <p class="text-muted small mb-0 mt-2" id="varietyEmpty" style="display:none;">No fields tracked yet.</p>
+        </div>
+    </div>
+</div>
+
+<div class="card p-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="fw-bold mb-0" style="color:var(--leaf-dark)">Most Recent Scans</h6>
+        <a href="{% url 'modelapp:history' %}" class="small text-decoration-none" style="color:var(--leaf-primary)">View all &rarr;</a>
+    </div>
+    <div class="table-responsive">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr><th>Image</th><th>Diagnosis</th><th>Confidence</th><th>Time</th><th>Status</th></tr>
+            </thead>
+            <tbody id="recentScansBody">
+                <tr><td colspan="5" class="text-center text-muted py-4">Loading recent scans...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CLASS_LABELS = ['Healthy','Smut','Fungal','Grassy Shoot','Mosaic','Rust','Scald','Borer','Pests','Red Rot'];
+const CLASS_KEYS   = ['healthy','smut','fungal','grassy_shoot','mosaic','rust','scald','borer','pests','red_rot'];
+const CLASS_COLORS = ['#2d6a4f','#1f2937','#7c3aed','#059669','#d97706','#b45309','#dc2626','#7c5c3e','#94a3b8','#991b1b'];
+const STAGE_COLORS = { germination:'#94a3b8', tillering:'#059669', grand_growth:'#2d6a4f', maturity:'#d97706', harvest_ready:'#dc2626' };
+
+const weeklyChart = new Chart(document.getElementById('weeklyChart'), {
+    type: 'bar',
+    data: { labels: [], datasets: [
+        { label: 'Healthy', data: [], backgroundColor: '#2d6a4f', borderRadius: 6 },
+        { label: 'Diseased', data: [], backgroundColor: '#dc2626', borderRadius: 6 }
+    ]},
+    options: { responsive: true, scales: { x: { grid: { display: false } }, y: { grid: { color: '#eef3ec' } } },
+        plugins: { legend: { position: 'bottom' } } }
+});
+
+const diseaseChart = new Chart(document.getElementById('diseaseChart'), {
+    type: 'doughnut',
+    data: { labels: CLASS_LABELS, datasets: [{ data: new Array(10).fill(0), backgroundColor: CLASS_COLORS, borderWidth: 0 }] },
+    options: { cutout: '70%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } } } }
+});
+
+const fieldGrowthChart = new Chart(document.getElementById('fieldGrowthChart'), {
+    type: 'bar',
+    data: { labels: [], datasets: [{ label: 'Growth Progress (%)', data: [], backgroundColor: [], borderRadius: 6 }] },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        scales: { x: { min: 0, max: 100, grid: { color: '#eef3ec' } }, y: { grid: { display: false } } },
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    afterLabel: (ctx) => fieldGrowthMeta[ctx.dataIndex] || ''
+                }
+            }
+        }
+    }
+});
+let fieldGrowthMeta = [];
+
+const varietyChart = new Chart(document.getElementById('varietyChart'), {
+    type: 'doughnut',
+    data: { labels: [], datasets: [{ data: [], backgroundColor: [], borderWidth: 0 }] },
+    options: { cutout: '65%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } } } }
+});
+
+function renderGrowthRateCard(valueElId, iconElId, detailElId, pct, detailText, invert = false) {
+    const valueEl = document.getElementById(valueElId);
+    const iconEl = document.getElementById(iconElId);
+    const detailEl = document.getElementById(detailElId);
+
+    if (pct === null || pct === undefined) {
+        valueEl.textContent = 'N/A';
+        valueEl.style.color = 'var(--text-muted, #6c757d)';
+        iconEl.className = 'bi';
+        detailEl.textContent = detailText;
+        return;
+    }
+
+    const rounded = pct.toFixed(1);
+    const isUp = pct > 0;
+    const isFlat = pct === 0;
+    const goodColor = 'var(--leaf-primary)';
+    const badColor = 'var(--danger)';
+    let color = isFlat ? 'var(--text-muted, #6c757d)' : (isUp ? (invert ? badColor : goodColor) : (invert ? goodColor : badColor));
+
+    valueEl.textContent = `${isUp ? '+' : ''}${rounded}%`;
+    valueEl.style.color = color;
+    iconEl.className = isFlat ? 'bi bi-dash' : (isUp ? 'bi bi-arrow-up-right' : 'bi bi-arrow-down-right');
+    iconEl.style.color = color;
+    detailEl.textContent = detailText;
+}
+
+async function loadDashboard() {
+    try {
+        const res = await fetch('/api/scans/summary/');
+        const data = await res.json();
+
+        document.getElementById('totalScans').textContent = data.total_scans;
+        document.getElementById('healthyCount').textContent = data.healthy_count;
+        document.getElementById('diseasedCount').textContent = data.diseased_count;
+        document.getElementById('avgConfidence').textContent = `${(data.avg_confidence * 100).toFixed(1)}%`;
+
+        const diseaseRate = data.total_scans ? (data.diseased_count / data.total_scans) * 100 : 0;
+        const alertBox = document.getElementById('outbreakAlert');
+        if (diseaseRate > 40) {
+            document.getElementById('outbreakAlertText').textContent =
+                `${diseaseRate.toFixed(0)}% of recent scans show disease — consider a field inspection.`;
+            alertBox.style.display = 'block';
+        } else {
+            alertBox.style.display = 'none';
+        }
+
+        const suggBox = document.getElementById('suggestionsBox');
+        if (suggBox) {
+            const suggestions = data.suggestions || [];
+            suggBox.innerHTML = suggestions.length
+                ? suggestions.map(s => `<li class="mb-1">${s}</li>`).join('')
+                : '<li>No suggestions available yet.</li>';
+        }
+
+        if (data.growth) {
+            renderGrowthRateCard(
+                'scanGrowthValue', 'scanGrowthIcon', 'scanGrowthDetail',
+                data.growth.scan_volume_growth,
+                `${data.growth.this_week_scans} scans vs ${data.growth.prev_week_scans} last week`,
+                false
+            );
+            renderGrowthRateCard(
+                'diseaseGrowthValue', 'diseaseGrowthIcon', 'diseaseGrowthDetail',
+                data.growth.disease_rate_growth,
+                `${data.growth.this_week_disease_rate}% vs ${data.growth.prev_week_disease_rate}% last week`,
+                true
+            );
+        }
+
+        weeklyChart.data.labels = data.weekly.map(d => d.day);
+        weeklyChart.data.datasets[0].data = data.weekly.map(d => d.healthy);
+        weeklyChart.data.datasets[1].data = data.weekly.map(d => d.diseased);
+        weeklyChart.update();
+
+        diseaseChart.data.datasets[0].data = CLASS_KEYS.map(k => data.class_distribution[k] || 0);
+        diseaseChart.update();
+    } catch (e) { console.error('dashboard load failed', e); }
+}
+
+async function loadRecent() {
+    try {
+        const res = await fetch('/api/scans/recent/?limit=8');
+        const data = await res.json();
+        const tbody = document.getElementById('recentScansBody');
+        if (!data.length) {
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">No scans yet</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = data.map(r => {
+            const isHealthy = r.class_key === 'healthy';
+            return `
+            <tr>
+                <td><img src="${r.image_thumbnail}" style="width:40px;height:40px;object-fit:cover;border-radius:8px;"></td>
+                <td class="fw-semibold">
+                    ${r.disease_class}
+                    ${r.recommendation ? `<i class="bi bi-info-circle ms-1" style="cursor:pointer;color:var(--leaf-primary);"
+                        data-bs-toggle="tooltip" data-bs-placement="top" title="${r.recommendation.replace(/"/g, '&quot;')}"></i>` : ''}
+                </td>
+                <td>${(r.confidence * 100).toFixed(1)}%</td>
+                <td class="text-muted">${new Date(r.timestamp).toLocaleTimeString()}</td>
+                <td>${isHealthy ? '<span class="badge badge-healthy">Healthy</span>' : '<span class="badge badge-disease">Disease</span>'}</td>
+            </tr>`;
+        }).join('');
+        initTooltips();
+    } catch (e) { console.error('recent scans failed', e); }
+}
+
+async function loadGrowthWidget() {
+    try {
+        const res = await fetch('/api/fields/latest/');
+        const f = await res.json();
+        const card = document.getElementById('growthWidgetCard');
+        if (!f || !f.id) { card.style.display = 'none'; return; }
+
+        const color = STAGE_COLORS[f.stage_key] || '#2d6a4f';
+
+        document.getElementById('growthFieldName').textContent = f.field_name;
+        const badge = document.getElementById('growthStageBadge');
+        badge.textContent = f.stage_label;
+        badge.style.background = color;
+        badge.style.color = '#fff';
+        const bar = document.getElementById('growthProgressBar');
+        bar.style.width = `${f.progress_pct}%`;
+        bar.style.background = color;
+        document.getElementById('growthDetail').textContent =
+            `Day ${f.days_since_planting} of ~${f.total_cycle_days} \u00b7 ${f.progress_pct}% \u00b7 ${f.stage_tip}`;
+        card.style.display = 'block';
+    } catch (e) { console.error('growth widget load failed', e); }
+}
+
+function initTooltips() {
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+        bootstrap.Tooltip.getOrCreateInstance(el);
+    });
+}
+
+async function loadFieldCharts() {
+    try {
+        const res = await fetch('/api/fields/');
+        const fields = await res.json();
+
+        // --- Field-wise growth progress (horizontal bar) ---
+        const fgEmpty = document.getElementById('fieldGrowthEmpty');
+        const fgCanvas = document.getElementById('fieldGrowthChart');
+        if (!fields.length) {
+            fgCanvas.style.display = 'none';
+            fgEmpty.style.display = 'block';
+        } else {
+            fgCanvas.style.display = 'block';
+            fgEmpty.style.display = 'none';
+            fieldGrowthChart.data.labels = fields.map(f => f.field_name);
+            fieldGrowthChart.data.datasets[0].data = fields.map(f => f.progress_pct);
+            fieldGrowthChart.data.datasets[0].backgroundColor = fields.map(f => STAGE_COLORS[f.stage_key] || '#2d6a4f');
+            fieldGrowthMeta = fields.map(f => `${f.stage_label} \u00b7 Day ${f.days_since_planting}${f.variety ? ' \u00b7 ' + f.variety : ''}`);
+            fieldGrowthChart.update();
+        }
+
+        // --- Crop variety distribution (doughnut, by field count per variety) ---
+        const vEmpty = document.getElementById('varietyEmpty');
+        const vCanvas = document.getElementById('varietyChart');
+        if (!fields.length) {
+            vCanvas.style.display = 'none';
+            vEmpty.style.display = 'block';
+        } else {
+            vCanvas.style.display = 'block';
+            vEmpty.style.display = 'none';
+            const counts = {};
+            fields.forEach(f => {
+                const label = f.variety && f.variety.trim() ? f.variety : 'Unspecified';
+                counts[label] = (counts[label] || 0) + 1;
+            });
+            const labels = Object.keys(counts);
+            const palette = ['#2d6a4f','#059669','#d97706','#7c3aed','#dc2626','#1f2937','#b45309','#94a3b8','#991b1b','#7c5c3e'];
+            varietyChart.data.labels = labels;
+            varietyChart.data.datasets[0].data = labels.map(l => counts[l]);
+            varietyChart.data.datasets[0].backgroundColor = labels.map((_, i) => palette[i % palette.length]);
+            varietyChart.update();
+        }
+    } catch (e) { console.error('field charts load failed', e); }
+}
+
+loadDashboard();
+loadRecent();
+loadGrowthWidget();
+loadFieldCharts();
+setInterval(loadDashboard, 20000);
+setInterval(loadRecent, 10000);
+setInterval(loadGrowthWidget, 60000);
+setInterval(loadFieldCharts, 60000);
+</script>
+{% endblock %}

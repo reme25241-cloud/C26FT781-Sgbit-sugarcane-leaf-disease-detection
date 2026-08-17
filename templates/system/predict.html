@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+{% block title %}Scan Leaf | CaneGuardAI{% endblock %}
+{% block nav_predict %}active{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h3 class="fw-bold mb-0" style="color:var(--leaf-dark)">Leaf Disease Scanner</h3>
+    <small class="text-muted">Upload a photo or use your camera to diagnose a sugarcane leaf</small>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="card p-4">
+            <ul class="nav nav-pills mb-3 gap-2" id="inputTabs">
+                <li class="nav-item">
+                    <button class="nav-link active" style="background:var(--leaf-primary);color:#fff;" data-mode="upload">
+                        <i class="bi bi-upload me-1"></i>Upload Photo
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" style="color:var(--text-muted);" data-mode="camera">
+                        <i class="bi bi-camera-fill me-1"></i>Use Camera
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Upload mode -->
+            <div id="uploadPanel">
+                <div class="border rounded-4 p-5 text-center" id="dropZone"
+                     style="border-style:dashed !important; border-color:var(--border-subtle) !important; background:var(--leaf-soft); cursor:pointer;">
+                    <i class="bi bi-cloud-arrow-up fs-1" style="color:var(--leaf-primary)"></i>
+                    <div class="fw-semibold mt-2">Click to upload or drag a leaf image here</div>
+                    <small class="text-muted">JPG or PNG, up to 10MB</small>
+                    <input type="file" id="fileInput" accept="image/*" class="d-none">
+                </div>
+                <img id="previewImage" class="w-100 rounded-4 mt-3" style="display:none; max-height:340px; object-fit:cover;">
+            </div>
+
+            <!-- Camera mode -->
+            <div id="cameraPanel" style="display:none;">
+                <div class="position-relative rounded-4 overflow-hidden" style="background:#0f172a; aspect-ratio:4/3;">
+                    <video id="videoFeed" autoplay playsinline class="w-100 h-100" style="object-fit:cover; display:none;"></video>
+                    <canvas id="captureCanvas" style="display:none;"></canvas>
+                    <img id="capturedPreview" class="w-100 h-100" style="object-fit:cover; display:none;">
+                    <div id="camPlaceholder" class="d-flex flex-column align-items-center justify-content-center h-100 text-white">
+                        <i class="bi bi-camera-video-off fs-1 mb-2 opacity-50"></i>
+                        <span class="small opacity-75">Camera not started</span>
+                    </div>
+                </div>
+                <div class="d-flex gap-2 mt-3">
+                    <button class="btn btn-leaf-outline" id="startCamBtn"><i class="bi bi-camera-video me-1"></i>Start Camera</button>
+                    <button class="btn btn-leaf" id="snapBtn" disabled><i class="bi bi-camera-fill me-1"></i>Capture Frame</button>
+                    <button class="btn btn-leaf-outline" id="retakeBtn" style="display:none;"><i class="bi bi-arrow-counterclockwise me-1"></i>Retake</button>
+                </div>
+            </div>
+
+            <button class="btn btn-leaf w-100 mt-4 py-2" id="analyzeBtn" disabled>
+                <i class="bi bi-cpu-fill me-2"></i>Analyze Leaf
+            </button>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card p-4 mb-3">
+            <h6 class="fw-bold mb-3" style="color:var(--leaf-dark)">Diagnosis Result</h6>
+            <div id="resultLoading" class="text-center py-4" style="display:none;">
+                <div class="spinner-border" style="color:var(--leaf-primary)" role="status"></div>
+                <div class="text-muted small mt-2" id="resultLoadingText">Loading model...</div>
+            </div>
+            <div id="resultEmpty" class="text-center py-4 text-muted">
+                <i class="bi bi-flower1 fs-1 opacity-25"></i>
+                <div class="small mt-2">No scan yet</div>
+            </div>
+            <div id="resultContent" style="display:none;"></div>
+        </div>
+
+        <div class="alert alert-threshold py-3 mb-0" id="diseaseAlert" style="display:none;">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <span id="diseaseAlertText">High-severity disease detected — immediate action recommended.</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.7.4/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8.4/dist/teachablemachine-image.min.js"></script>
+
+<script>
+let selectedImageData = null;
+let stream = null;
+let tmModel = null;
+let lastSource = 'upload'; // 'upload' | 'camera'
+
+const MODEL_URL = "https://teachablemachine.withgoogle.com/models/ut-5z3sw_/";
+
+// ─── Elements ──────────────────────────────────────────────────────────────
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const previewImage = document.getElementById('previewImage');
+const analyzeBtn = document.getElementById('analyzeBtn');
+
+const uploadPanel = document.getElementById('uploadPanel');
+const cameraPanel = document.getElementById('cameraPanel');
+const video = document.getElementById('videoFeed');
+const canvas = document.getElementById('captureCanvas');
+const capturedPreview = document.getElementById('capturedPreview');
+const camPlaceholder = document.getElementById('camPlaceholder');
+const startCamBtn = document.getElementById('startCamBtn');
+const snapBtn = document.getElementById('snapBtn');
+const retakeBtn = document.getElementById('retakeBtn');
+
+// ─── Tab switching ─────────────────────────────────────────────────────────
+document.querySelectorAll('#inputTabs .nav-link').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('#inputTabs .nav-link').forEach(b => {
+            b.classList.remove('active'); b.style.background = 'transparent'; b.style.color = 'var(--text-muted)';
+        });
+        btn.classList.add('active'); btn.style.background = 'var(--leaf-primary)'; btn.style.color = '#fff';
+
+        const mode = btn.dataset.mode;
+        uploadPanel.style.display = mode === 'upload' ? 'block' : 'none';
+        cameraPanel.style.display = mode === 'camera' ? 'block' : 'none';
+
+        if (mode === 'camera') {
+            // switching into camera mode: clear any upload selection so Analyze
+            // doesn't fire on stale data, unless a frame was already captured
+            if (lastSource !== 'camera') {
+                selectedImageData = null;
+                analyzeBtn.disabled = true;
+            }
+        } else {
+            // leaving camera mode: stop the stream to free the device
+            stopCamera();
+            if (lastSource !== 'upload') {
+                selectedImageData = null;
+                analyzeBtn.disabled = true;
+            }
+        }
+    });
+});
+
+// ─── Upload handling ───────────────────────────────────────────────────────
+dropZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+dropZone.addEventListener('dragover', (e) => e.preventDefault());
+dropZone.addEventListener('drop', (e) => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); });
+
+function handleFile(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        selectedImageData = e.target.result;
+        previewImage.src = selectedImageData;
+        previewImage.style.display = 'block';
+        lastSource = 'upload';
+        analyzeBtn.disabled = false;
+    };
+    reader.readAsDataURL(file);
+}
+
+// ─── Camera handling ───────────────────────────────────────────────────────
+startCamBtn.addEventListener('click', async () => {
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        video.srcObject = stream;
+        video.style.display = 'block';
+        capturedPreview.style.display = 'none';
+        camPlaceholder.style.display = 'none';
+        snapBtn.disabled = false;
+        snapBtn.style.display = 'inline-block';
+        retakeBtn.style.display = 'none';
+        startCamBtn.textContent = '';
+        startCamBtn.innerHTML = '<i class="bi bi-camera-video me-1"></i>Restart Camera';
+    } catch (e) {
+        console.error('camera access failed', e);
+        alert('Camera access denied or unavailable.');
+    }
+});
+
+snapBtn.addEventListener('click', () => {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+    selectedImageData = canvas.toDataURL('image/jpeg', 0.9);
+    lastSource = 'camera';
+    analyzeBtn.disabled = false;
+
+    // show the still frame, hide the live video
+    capturedPreview.src = selectedImageData;
+    capturedPreview.style.display = 'block';
+    video.style.display = 'none';
+    snapBtn.style.display = 'none';
+    retakeBtn.style.display = 'inline-block';
+});
+
+retakeBtn.addEventListener('click', () => {
+    capturedPreview.style.display = 'none';
+    video.style.display = 'block';
+    snapBtn.style.display = 'inline-block';
+    retakeBtn.style.display = 'none';
+    selectedImageData = null;
+    analyzeBtn.disabled = true;
+});
+
+function stopCamera() {
+    if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+    }
+    video.srcObject = null;
+    video.style.display = 'none';
+    capturedPreview.style.display = 'none';
+    camPlaceholder.style.display = 'flex';
+    snapBtn.disabled = true;
+    snapBtn.style.display = 'inline-block';
+    retakeBtn.style.display = 'none';
+    startCamBtn.innerHTML = '<i class="bi bi-camera-video me-1"></i>Start Camera';
+}
+
+// ─── Model loading (lazy, cached) ─────────────────────────────────────────
+async function loadModel() {
+    if (!tmModel) {
+        document.getElementById('resultLoadingText').textContent = 'Loading model...';
+        tmModel = await tmImage.load(MODEL_URL + "model.json", MODEL_URL + "metadata.json");
+    }
+    return tmModel;
+}
+// Warm the model in the background as soon as the page loads.
+loadModel().catch(err => console.error('model preload failed', err));
+
+// ─── Helpers ───────────────────────────────────────────────────────────────
+function shrinkForThumbnail(sourceEl, maxSize = 120) {
+    const c = document.createElement('canvas');
+    const w = sourceEl.videoWidth || sourceEl.naturalWidth || sourceEl.width;
+    const h = sourceEl.videoHeight || sourceEl.naturalHeight || sourceEl.height;
+    const scale = maxSize / Math.max(w, h);
+    c.width = w * scale;
+    c.height = h * scale;
+    c.getContext('2d').drawImage(sourceEl, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', 0.7);
+}
+
+function getInferenceElement() {
+    // tmImage.predict() accepts an <img>, <video>, or <canvas> element directly.
+    // For camera captures, use the still-frame canvas (not the live video),
+    // since that's the exact frame the user chose and what gets saved/thumbnailed.
+    if (lastSource === 'camera') return canvas;
+    return previewImage;
+}
+
+// ─── Analysis ──────────────────────────────────────────────────────────────
+analyzeBtn.addEventListener('click', async () => {
+    if (!selectedImageData) return;
+
+    document.getElementById('resultEmpty').style.display = 'none';
+    document.getElementById('resultContent').style.display = 'none';
+    document.getElementById('resultLoadingText').textContent = 'Running classification...';
+    document.getElementById('resultLoading').style.display = 'block';
+    document.getElementById('diseaseAlert').style.display = 'none';
+    analyzeBtn.disabled = true;
+
+    try {
+        const modelReady = await loadModel();
+        const inferenceEl = getInferenceElement();
+        const predictions = await modelReady.predict(inferenceEl);
+        predictions.sort((a, b) => b.probability - a.probability);
+        const top = predictions[0];
+
+        const payload = {
+            raw_label: top.className,
+            confidence: top.probability,
+            image_thumbnail: shrinkForThumbnail(inferenceEl),
+        };
+
+        const res = await fetch('/api/scans/save/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error(`save failed: ${res.status}`);
+        const data = await res.json();
+        renderResult(data);
+    } catch (e) {
+        console.error('prediction failed', e);
+        document.getElementById('resultLoading').style.display = 'none';
+        document.getElementById('resultEmpty').style.display = 'block';
+    } finally {
+        analyzeBtn.disabled = false;
+    }
+});
+
+function renderResult(data) {
+    document.getElementById('resultLoading').style.display = 'none';
+    const container = document.getElementById('resultContent');
+    container.style.display = 'block';
+
+    const isHealthy = data.class_key === 'healthy';
+    const badgeClass = isHealthy ? 'badge-healthy' : 'badge-disease';
+
+    container.innerHTML = `
+        <div class="text-center mb-3">
+            <div class="badge ${badgeClass} rounded-pill px-3 py-2 fs-6 fw-bold mb-2">
+                ${isHealthy ? '<i class="bi bi-check-circle-fill me-1"></i>' : '<i class="bi bi-exclamation-triangle-fill me-1"></i>'}
+                ${data.disease_class}
+            </div>
+            <div class="text-muted small">${(data.confidence * 100).toFixed(1)}% confidence</div>
+        </div>
+        <div class="progress mb-3" style="height:8px; border-radius:6px;">
+            <div class="progress-bar" style="width:${(data.confidence * 100).toFixed(0)}%; background:${isHealthy ? 'var(--leaf-primary)' : 'var(--danger)'};"></div>
+        </div>
+        <div class="p-3 rounded-3" style="background:var(--leaf-soft);">
+            <div class="fw-semibold small mb-1"><i class="bi bi-clipboard2-pulse me-1"></i>Recommendation</div>
+            <div class="text-muted small">${data.recommendation || 'No specific recommendation available.'}</div>
+        </div>
+    `;
+
+    if (!isHealthy && data.severity === 'high') {
+        document.getElementById('diseaseAlertText').textContent =
+            `High-severity ${data.disease_class} detected (${(data.confidence * 100).toFixed(0)}% confidence) — immediate treatment recommended.`;
+        document.getElementById('diseaseAlert').style.display = 'block';
+    }
+}
+
+window.addEventListener('beforeunload', () => { if (stream) stream.getTracks().forEach(t => t.stop()); });
+</script>
+{% endblock %}

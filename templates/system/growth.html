@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Crop Growth | CaneGuardAI{% endblock %}
+{% block nav_growth %}active{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h3 class="fw-bold mb-0" style="color:var(--leaf-dark)">Crop Growth Tracker</h3>
+    <small class="text-muted">Track growth stage per field based on planting date</small>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-4">
+        <div class="card p-4">
+            <h6 class="fw-bold mb-3" style="color:var(--leaf-dark)">Add Field</h6>
+            <form id="fieldForm">
+                <div class="mb-3">
+                    <label class="form-label small">Field Name</label>
+                    <input type="text" class="form-control" id="fieldName" required placeholder="e.g. North Plot">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small">Planting Date</label>
+                    <input type="date" class="form-control" id="plantingDate" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small">Variety (optional)</label>
+                    <input type="text" class="form-control" id="variety" placeholder="e.g. Co 0238">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small">Area, acres (optional)</label>
+                    <input type="number" step="0.1" min="0" class="form-control" id="areaAcres">
+                </div>
+                <button type="submit" class="btn btn-leaf w-100">
+                    <i class="bi bi-plus-circle me-1"></i> Add Field
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card p-4">
+            <h6 class="fw-bold mb-3" style="color:var(--leaf-dark)">Tracked Fields</h6>
+            <div id="fieldsList">
+                <p class="text-muted text-center py-4">Loading fields...</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const STAGE_COLORS = {
+    germination: '#94a3b8',
+    tillering: '#059669',
+    grand_growth: '#2d6a4f',
+    maturity: '#d97706',
+    harvest_ready: '#dc2626',
+};
+
+function renderFields(fields) {
+    const box = document.getElementById('fieldsList');
+    if (!fields.length) {
+        box.innerHTML = `<p class="text-muted text-center py-4">No fields tracked yet. Add one to get started.</p>`;
+        return;
+    }
+    box.innerHTML = fields.map(f => {
+        const color = STAGE_COLORS[f.stage_key] || '#2d6a4f';
+        return `
+        <div class="card p-3 mb-2">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                <div>
+                    <div class="fw-semibold">${f.field_name} ${f.variety ? `<span class="text-muted small">(${f.variety})</span>` : ''}</div>
+                    <div class="small text-muted">Planted ${f.planting_date} &middot; Day ${f.days_since_planting}${f.area_acres ? ` &middot; ${f.area_acres} acres` : ''}</div>
+                </div>
+                <span class="badge" style="background:${color};color:#fff;">${f.stage_label}</span>
+            </div>
+            <div class="progress mt-2" style="height:8px;">
+                <div class="progress-bar" role="progressbar" style="width:${f.progress_pct}%;background:${color};"></div>
+            </div>
+            <div class="small text-muted mt-1">${f.progress_pct}% of typical cycle &middot; ${f.stage_tip}</div>
+        </div>`;
+    }).join('');
+}
+
+async function loadFields() {
+    try {
+        const res = await fetch('/api/fields/');
+        const data = await res.json();
+        renderFields(data);
+    } catch (e) { console.error('fields load failed', e); }
+}
+
+document.getElementById('fieldForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = {
+        field_name: document.getElementById('fieldName').value,
+        planting_date: document.getElementById('plantingDate').value,
+        variety: document.getElementById('variety').value,
+        area_acres: document.getElementById('areaAcres').value ? parseFloat(document.getElementById('areaAcres').value) : null,
+    };
+    try {
+        const res = await fetch('/api/fields/save/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error('save failed');
+        e.target.reset();
+        loadFields();
+    } catch (err) { console.error(err); alert('Could not save field.'); }
+});
+
+loadFields();
+</script>
+{% endblock %}
